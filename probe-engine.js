@@ -428,6 +428,12 @@ const NetDiag = (() => {
       }
     }
 
+    /** 軽量チェック（回復ウォッチ用。数百バイトの通信のみ） */
+    async quickCheck() {
+      const r = await fetchProbe(this.config.probeUrl, this.config.timeoutMs);
+      return { ok: r.ok, ms: r.totalMs };
+    }
+
     /**
      * 詳細診断（「遅い/不安定」の後段。追加で最大約2MB通信する）
      * idleRttMs には直前の run() の stability.meanRttMs を渡すとよい

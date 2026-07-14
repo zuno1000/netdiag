@@ -11,7 +11,7 @@ const NetDiagLog = (() => {
   const MAX = 1000; // 上限を超えたら古い順に破棄
 
   const COLS = [
-    "time", "key", "message", "detail",
+    "time", "key", "message", "detail", "tag",
     "online", "reachable", "portalSuspect",
     "httpStatus", "httpMs",
     "lossRate", "jitterMs", "meanRttMs",
@@ -40,7 +40,7 @@ const NetDiagLog = (() => {
   }
 
   /** 診断1回分を記録する */
-  function add(diagnosis, metrics = {}) {
+  function add(diagnosis, metrics = {}, tag = "") {
     const p = metrics.phases || {};
     const s = metrics.stability || {};
     const d = metrics.deep || {};
@@ -50,6 +50,7 @@ const NetDiagLog = (() => {
       key: diagnosis.key,
       message: diagnosis.message,
       detail: diagnosis.detail || "",
+      tag: tag || "",
       online: metrics.online ?? null,
       reachable: metrics.reachable ?? null,
       portalSuspect: metrics.portalSuspect ?? null,

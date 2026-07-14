@@ -57,6 +57,27 @@
   #progTrack { height: 6px; background: #ddd; border-radius: 3px; overflow: hidden; }
   #progFill { height: 100%; width: 0%; background: #0f6e56;
               border-radius: 3px; }
+  #tagRow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+            font-size: 14px; color: #666; }
+  #tagRow select { padding: 6px 10px; border-radius: 8px; border: 1px solid #bbb;
+                   background: transparent; color: inherit; font-size: 14px; }
+  #usage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  .u-cell { background: #fff; border-radius: 10px; padding: 10px 4px; text-align: center; }
+  .u-icon { font-size: 20px; }
+  .u-name { font-size: 11px; color: #666; margin: 2px 0; }
+  .u-mark { font-size: 16px; font-weight: 600; }
+  .u0 { color: #1d9e75; } .u1 { color: #ba7517; } .u2 { color: #d85a30; }
+  #actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  #actions button { flex: 1; min-width: 130px; padding: 10px 8px; font-size: 13px;
+                    color: #0f6e56; background: transparent;
+                    border: 1px solid #0f6e56; border-radius: 10px; }
+  #watchStatus, #compareBox { margin-top: 10px; font-size: 13px; color: #555;
+                              background: #fff; border-radius: 10px; padding: 10px 12px; }
+  #compareBox table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #compareBox td, #compareBox th { padding: 4px 6px; text-align: center;
+                                   border-bottom: 1px solid #e5e5e5; }
+  #compareBox .verdict { font-weight: 600; margin: 8px 0 0; font-size: 14px; }
+  #histCanvas { width: 100%; height: 180px; }
   @media (prefers-color-scheme: dark) {
     body { background: #1c1c1e; color: #eee; }
     li { background: #2c2c2e; }
@@ -70,12 +91,27 @@
     #deepBtn { color: #9fe1cb; border-color: #0f6e56; }
     #progHead { color: #999; }
     #progTrack { background: #3a3a3c; }
+    #tagRow { color: #999; } #tagRow select { border-color: #555; }
+    .u-cell, #watchStatus, #compareBox { background: #2c2c2e; }
+    #watchStatus, #compareBox { color: #ccc; }
+    #compareBox td, #compareBox th { border-bottom-color: #444; }
   }
 </style>
 </head>
 <body>
 <main>
   <h1>通信診断</h1>
+  <div id="tagRow">
+    <label for="tagSel">場所タグ</label>
+    <select id="tagSel">
+      <option value="">（なし）</option>
+      <option>自宅</option>
+      <option>大学・職場</option>
+      <option>電車・移動中</option>
+      <option>カフェ・外出先</option>
+      <option>その他</option>
+    </select>
+  </div>
   <button id="runBtn">診断する</button>
   <section id="road" hidden></section>
   <section id="diagnosis" hidden>
@@ -83,6 +119,14 @@
     <p id="diagSuggest"></p>
     <p id="diagDetail"></p>
   </section>
+  <div id="usage" hidden></div>
+  <div id="watchStatus" hidden></div>
+  <div id="compareBox" hidden></div>
+  <div id="actions" hidden>
+    <button id="watchBtn">回復を見張る</button>
+    <button id="compareBtn">回線を切り替えて比較</button>
+    <button id="shareBtn">画像で共有</button>
+  </div>
   <button id="deepBtn" hidden>詳しく調べる（追加で最大約2MB通信）</button>
   <div id="progress" hidden>
     <div id="progHead"><span id="progLabel"></span><span id="progElapsed"></span></div>
@@ -91,6 +135,10 @@
   <details>
     <summary>詳細データ</summary>
     <ul id="stages"></ul>
+  </details>
+  <details id="hist">
+    <summary>履歴グラフ（応答時間の推移）</summary>
+    <canvas id="histCanvas"></canvas>
   </details>
   <section id="log">
     <span id="logCount"></span>
@@ -102,6 +150,7 @@
 <script src="probe-engine.js"></script>
 <script src="road-view.js"></script>
 <script src="log-store.js"></script>
+<script src="features.js"></script>
 <script>
 "use strict";
 const engine = new NetDiag.Engine();
@@ -212,6 +261,11 @@ runBtn.addEventListener("click", async () => {
   stagesEl.innerHTML = "";
   diagEl.hidden = true;
   deepBtn.hidden = true;
+  usageEl.hidden = true;
+  actionsEl.hidden = true;
+  watcher.stop();
+  watchStatusEl.hidden = true;
+  watchBtn.textContent = "回復を見張る";
   NetDiagView.scanning(roadEl); // 計測中は調査車が道路を巡回
   progressStart(10, "netdiag-dur-run");
   try {
@@ -219,9 +273,14 @@ runBtn.addEventListener("click", async () => {
     if (out) {
       NetDiagView.show(roadEl, out.diagnosis);
       showDiagnosis(out.diagnosis);
-      NetDiagLog.add(out.diagnosis, out.metrics); // 研究用ログ（端末内のみ）
+      NetDiagLog.add(out.diagnosis, out.metrics, currentTag()); // 記録は端末内のみ
       updateLogInfo();
+      drawHistoryIfOpen();
       lastOut = out;
+      currentView = { diagnosis: out.diagnosis, metrics: out.metrics };
+      NetDiagFeatures.renderUsage(usageEl, out.metrics, out.diagnosis);
+      updateActions(out);
+      if (pendingCompare) renderComparison(pendingCompare, out);
       // 「遅い/不安定」の時だけ詳細診断を提案する
       deepBtn.hidden = !["slow", "weakOrCongested"].includes(out.diagnosis.key);
     }
@@ -244,8 +303,14 @@ deepBtn.addEventListener("click", async () => {
     if (out) {
       NetDiagView.show(roadEl, out.diagnosis);
       showDiagnosis(out.diagnosis);
-      NetDiagLog.add(out.diagnosis, out.metrics);
+      NetDiagLog.add(out.diagnosis, out.metrics, currentTag());
       updateLogInfo();
+      drawHistoryIfOpen();
+      currentView = {
+        diagnosis: out.diagnosis,
+        metrics: { ...(lastOut ? lastOut.metrics : {}), deep: out.metrics.deep },
+      };
+      NetDiagFeatures.renderUsage(usageEl, currentView.metrics, out.diagnosis);
       deepBtn.hidden = true;
     }
   } finally {
@@ -254,6 +319,101 @@ deepBtn.addEventListener("click", async () => {
     progressEnd();
   }
 });
+
+// ---- 追加機能の配線 ----
+const usageEl = document.getElementById("usage");
+const actionsEl = document.getElementById("actions");
+const watchBtn = document.getElementById("watchBtn");
+const compareBtn = document.getElementById("compareBtn");
+const shareBtn = document.getElementById("shareBtn");
+const watchStatusEl = document.getElementById("watchStatus");
+const compareBox = document.getElementById("compareBox");
+const tagSel = document.getElementById("tagSel");
+let currentView = null;
+let pendingCompare = null;
+
+// 場所タグ（選択を記憶し、記録に付与）
+tagSel.value = localStorage.getItem("netdiag-tag") || "";
+tagSel.addEventListener("change", () => {
+  try { localStorage.setItem("netdiag-tag", tagSel.value); } catch { /* noop */ }
+});
+function currentTag() { return tagSel.value; }
+
+function updateActions(out) {
+  actionsEl.hidden = false;
+  watchBtn.hidden = out.diagnosis.key === "healthy";
+  compareBtn.hidden = !out.metrics.online;
+}
+
+// 回復ウォッチ
+const watcher = NetDiagFeatures.createWatcher(engine, {
+  onCheck(r, streak, good) {
+    const t = new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+    watchStatusEl.textContent = good
+      ? `見張り中… ${t} 良好な応答です（確認 ${streak}/2回）`
+      : `見張り中… ${t} まだ不調です（30秒ごとに確認します）`;
+  },
+  onRecovered() {
+    watchBtn.textContent = "回復を見張る";
+    watchBtn.hidden = true;
+    watchStatusEl.textContent = "回復したようです。もう一度診断して確認してみてください";
+    const d = { key: "healthy", message: "回復したようです",
+                suggestion: "念のためもう一度「診断する」を押して確認してください", detail: "" };
+    NetDiagView.show(roadEl, d);
+    showDiagnosis(d);
+  },
+});
+watchBtn.addEventListener("click", () => {
+  if (watcher.active) {
+    watcher.stop();
+    watchBtn.textContent = "回復を見張る";
+    watchStatusEl.hidden = true;
+  } else {
+    watcher.start();
+    watchBtn.textContent = "見張りをやめる";
+    watchStatusEl.hidden = false;
+    watchStatusEl.textContent = "見張り中…（30秒ごとに軽く確認します。画面は開いたままにしてください）";
+  }
+});
+
+// 回線切り替え比較
+compareBtn.addEventListener("click", () => {
+  if (pendingCompare) {
+    pendingCompare = null;
+    compareBox.hidden = true;
+    compareBtn.textContent = "回線を切り替えて比較";
+    return;
+  }
+  pendingCompare = lastOut;
+  compareBtn.textContent = "比較を中止";
+  compareBox.hidden = false;
+  compareBox.textContent =
+    "Wi-Fiとモバイル回線を切り替えてから、もう一度「診断する」を押してください。2回の結果を並べて比較します。";
+});
+function renderComparison(a, b) {
+  compareBox.hidden = false;
+  compareBox.innerHTML = "";
+  compareBox.appendChild(NetDiagFeatures.buildCompareTable(a, b));
+  pendingCompare = null;
+  compareBtn.textContent = "回線を切り替えて比較";
+}
+
+// 共有カード
+shareBtn.addEventListener("click", () => {
+  if (currentView) {
+    NetDiagFeatures.shareCard({ ...currentView, tag: currentTag() });
+  }
+});
+
+// 履歴グラフ
+const histDetails = document.getElementById("hist");
+const histCanvas = document.getElementById("histCanvas");
+histDetails.addEventListener("toggle", () => {
+  if (histDetails.open) NetDiagFeatures.drawHistory(histCanvas, NetDiagLog.all());
+});
+function drawHistoryIfOpen() {
+  if (histDetails.open) NetDiagFeatures.drawHistory(histCanvas, NetDiagLog.all());
+}
 
 // ---- 研究用ログUI ----
 const logCountEl = document.getElementById("logCount");

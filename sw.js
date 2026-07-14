@@ -1,13 +1,14 @@
 /* Service Worker: アプリ本体を全キャッシュし、オフラインでも起動可能にする */
 "use strict";
 
-const CACHE = "netdiag-v6";
+const CACHE = "netdiag-v7";
 const ASSETS = [
   "./",
   "index.html",
   "probe-engine.js",
   "road-view.js",
   "log-store.js",
+  "features.js",
   "manifest.json",
   "icon-180.png",
   "icon-512.png",
