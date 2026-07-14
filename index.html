@@ -51,6 +51,12 @@
              color: #0f6e56; background: transparent;
              border: 1px solid #0f6e56; border-radius: 12px; }
   #deepBtn:disabled { opacity: 0.5; }
+  #progress { margin-top: 14px; }
+  #progHead { display: flex; justify-content: space-between; gap: 8px;
+              font-size: 13px; color: #666; margin-bottom: 6px; }
+  #progTrack { height: 6px; background: #ddd; border-radius: 3px; overflow: hidden; }
+  #progFill { height: 100%; width: 0%; background: #0f6e56;
+              border-radius: 3px; transition: width 0.3s; }
   @media (prefers-color-scheme: dark) {
     body { background: #1c1c1e; color: #eee; }
     li { background: #2c2c2e; }
@@ -62,6 +68,8 @@
     #log { color: #999; }
     #log button { border-color: #555; }
     #deepBtn { color: #9fe1cb; border-color: #0f6e56; }
+    #progHead { color: #999; }
+    #progTrack { background: #3a3a3c; }
   }
 </style>
 </head>
@@ -76,6 +84,10 @@
     <p id="diagDetail"></p>
   </section>
   <button id="deepBtn" hidden>詳しく調べる（追加で最大約2MB通信）</button>
+  <div id="progress" hidden>
+    <div id="progHead"><span id="progLabel"></span><span id="progElapsed"></span></div>
+    <div id="progTrack"><div id="progFill"></div></div>
+  </div>
   <details>
     <summary>詳細データ</summary>
     <ul id="stages"></ul>
@@ -99,6 +111,35 @@ const diagEl = document.getElementById("diagnosis");
 const roadEl = document.getElementById("road");
 const deepBtn = document.getElementById("deepBtn");
 let lastOut = null;
+
+// ---- 進捗表示（今なにをしていて、あとどのくらいか） ----
+const progEl = document.getElementById("progress");
+const progLabel = document.getElementById("progLabel");
+const progFill = document.getElementById("progFill");
+const progElapsed = document.getElementById("progElapsed");
+let progTimer = null;
+
+function progressStart(estimateText) {
+  progEl.hidden = false;
+  progFill.style.width = "0%";
+  progLabel.textContent = "準備中…";
+  progElapsed.textContent = estimateText;
+  const t0 = performance.now();
+  clearInterval(progTimer);
+  progTimer = setInterval(() => {
+    progElapsed.textContent =
+      `経過 ${Math.round((performance.now() - t0) / 1000)}秒（${estimateText}）`;
+  }, 500);
+}
+function progressUpdate(label, frac) {
+  progLabel.textContent = label;
+  progFill.style.width = Math.round(frac * 100) + "%";
+}
+function progressEnd() {
+  clearInterval(progTimer);
+  progressUpdate("完了", 1);
+  setTimeout(() => { progEl.hidden = true; }, 800);
+}
 
 const ICONS = { success: ["✓", "ok"], failure: ["✕", "ng"], skipped: ["−", "skip"] };
 
@@ -130,8 +171,9 @@ runBtn.addEventListener("click", async () => {
   diagEl.hidden = true;
   deepBtn.hidden = true;
   NetDiagView.scanning(roadEl); // 計測中は調査車が道路を巡回
+  progressStart("目安 約10秒");
   try {
-    const out = await engine.run(renderStage);
+    const out = await engine.run(renderStage, progressUpdate);
     if (out) {
       NetDiagView.show(roadEl, out.diagnosis);
       showDiagnosis(out.diagnosis);
@@ -144,6 +186,7 @@ runBtn.addEventListener("click", async () => {
   } finally {
     runBtn.disabled = false;
     runBtn.textContent = "診断する";
+    progressEnd();
   }
 });
 
@@ -151,10 +194,11 @@ runBtn.addEventListener("click", async () => {
 deepBtn.addEventListener("click", async () => {
   deepBtn.disabled = true;
   deepBtn.textContent = "詳細を計測中…";
+  progressStart("目安 約15秒");
   try {
     const idle = lastOut && lastOut.metrics.stability
       ? lastOut.metrics.stability.meanRttMs : null;
-    const out = await engine.deepRun(renderStage, idle);
+    const out = await engine.deepRun(renderStage, idle, progressUpdate);
     if (out) {
       NetDiagView.show(roadEl, out.diagnosis);
       showDiagnosis(out.diagnosis);
@@ -165,6 +209,7 @@ deepBtn.addEventListener("click", async () => {
   } finally {
     deepBtn.disabled = false;
     deepBtn.textContent = "詳しく調べる（追加で最大約2MB通信）";
+    progressEnd();
   }
 });
 

@@ -1,7 +1,7 @@
 /* Service Worker: アプリ本体を全キャッシュし、オフラインでも起動可能にする */
 "use strict";
 
-const CACHE = "netdiag-v4";
+const CACHE = "netdiag-v5";
 const ASSETS = [
   "./",
   "index.html",

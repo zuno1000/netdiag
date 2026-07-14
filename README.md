@@ -62,6 +62,15 @@ export default {
 const engine = new NetDiag.Engine({ probeUrl: "https://xxx.<名前>.workers.dev/" });
 ```
 
+## プライバシーとセキュリティ
+
+- サーバを持たない静的サイトで、利用者のデータを収集・送信する仕組みは無い
+- 診断記録（CSV）は端末のlocalStorageのみに保存され、外部には送信されない
+- 計測時にCloudflare・Google・jsDelivrへ小さなHTTPリクエストを送る
+  （通常のWeb閲覧と同程度。相手には他のWebアクセス同様にIPアドレスが見える）
+- 配信はGitHub PagesのHTTPS。リポジトリは公開だが、書き込めるのは所有者のみ
+- ユーザ実験で使う場合は、上記（外部送信なし）を説明文書に明記できる
+
 ## 詳細診断（二段構え）
 
 初回診断が「遅い/不安定」の時だけ「詳しく調べる」ボタンが現れる。
