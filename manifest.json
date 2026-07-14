@@ -1,0 +1,14 @@
+{
+  "name": "通信診断",
+  "short_name": "通信診断",
+  "description": "通信がつながらない原因をその場で診断・可視化するアプリ",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f5f2",
+  "theme_color": "#0f6e56",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>通信診断</title>
+<meta name="theme-color" content="#0f6e56">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "Hiragino Sans", sans-serif;
+    background: #f5f5f2; color: #1a1a1a;
+  }
+  main { max-width: 520px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 8px 0 16px; }
+  #runBtn {
+    width: 100%; padding: 14px; font-size: 17px; font-weight: 600;
+    color: #fff; background: #0f6e56; border: none; border-radius: 12px;
+  }
+  #runBtn:disabled { opacity: 0.5; }
+  ul { list-style: none; padding: 0; margin: 20px 0; }
+  li {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+  }
+  .icon { font-size: 18px; width: 24px; text-align: center; }
+  .ok { color: #1d9e75; } .ng { color: #d85a30; } .skip { color: #999; }
+  .stage-name { font-weight: 600; font-size: 15px; }
+  .detail { font-size: 12px; color: #666; }
+  .ms { margin-left: auto; font-size: 13px; color: #666; font-variant-numeric: tabular-nums; }
+  #diagnosis { background: #e1f5ee; border-radius: 12px; padding: 16px; margin-top: 4px; }
+  #diagnosis.bad { background: #faece7; }
+  #diagMsg { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+  #diagSuggest { font-size: 14px; margin: 0; color: #444; }
+  #diagDetail { font-size: 12px; margin: 6px 0 0; color: #777; }
+  #road { margin: 16px 0 4px; }
+  #road svg { width: 100%; height: auto; display: block; }
+  #road .lbl { fill: #555; }
+  details { margin: 12px 0; }
+  summary { font-size: 14px; color: #666; }
+  #log { display: flex; gap: 8px; align-items: center; margin: 8px 0 24px;
+         font-size: 13px; color: #666; }
+  #log button { padding: 6px 10px; font-size: 12px; color: inherit;
+                background: transparent; border: 1px solid #bbb; border-radius: 8px; }
+  #deepBtn { width: 100%; margin-top: 10px; padding: 12px; font-size: 15px;
+             color: #0f6e56; background: transparent;
+             border: 1px solid #0f6e56; border-radius: 12px; }
+  #deepBtn:disabled { opacity: 0.5; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1c1c1e; color: #eee; }
+    li { background: #2c2c2e; }
+    .detail, .ms { color: #aaa; }
+    #diagnosis { background: #0a3a2e; } #diagnosis.bad { background: #46220f; }
+    #diagSuggest { color: #ccc; } #diagDetail { color: #999; }
+    #road .lbl { fill: #bbb; }
+    summary { color: #999; }
+    #log { color: #999; }
+    #log button { border-color: #555; }
+    #deepBtn { color: #9fe1cb; border-color: #0f6e56; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>通信診断</h1>
+  <button id="runBtn">診断する</button>
+  <section id="road" hidden></section>
+  <section id="diagnosis" hidden>
+    <p id="diagMsg"></p>
+    <p id="diagSuggest"></p>
+    <p id="diagDetail"></p>
+  </section>
+  <button id="deepBtn" hidden>詳しく調べる（追加で最大約2MB通信）</button>
+  <details>
+    <summary>詳細データ</summary>
+    <ul id="stages"></ul>
+  </details>
+  <section id="log">
+    <span id="logCount"></span>
+    <button id="csvBtn">CSVエクスポート</button>
+    <button id="clearBtn">記録を消去</button>
+  </section>
+</main>
+
+<script src="probe-engine.js"></script>
+<script src="road-view.js"></script>
+<script src="log-store.js"></script>
+<script>
+"use strict";
+const engine = new NetDiag.Engine();
+const runBtn = document.getElementById("runBtn");
+const stagesEl = document.getElementById("stages");
+const diagEl = document.getElementById("diagnosis");
+const roadEl = document.getElementById("road");
+const deepBtn = document.getElementById("deepBtn");
+let lastOut = null;
+
+const ICONS = { success: ["✓", "ok"], failure: ["✕", "ng"], skipped: ["−", "skip"] };
+
+function renderStage(r) {
+  const [mark, cls] = ICONS[r.outcome];
+  const li = document.createElement("li");
+  const ms = r.latencyMs != null ? `${Math.round(r.latencyMs)} ms` : "";
+  li.innerHTML =
+    `<span class="icon ${cls}">${mark}</span>` +
+    `<span><div class="stage-name"></div><div class="detail"></div></span>` +
+    `<span class="ms">${ms}</span>`;
+  li.querySelector(".stage-name").textContent = NetDiag.StageNames[r.stage] || r.stage;
+  li.querySelector(".detail").textContent = r.detail || "";
+  stagesEl.appendChild(li);
+}
+
+function showDiagnosis(d) {
+  diagEl.hidden = false;
+  diagEl.className = d.key === "healthy" ? "" : "bad";
+  document.getElementById("diagMsg").textContent = d.message;
+  document.getElementById("diagSuggest").textContent = d.suggestion;
+  document.getElementById("diagDetail").textContent = d.detail || "";
+}
+
+runBtn.addEventListener("click", async () => {
+  runBtn.disabled = true;
+  runBtn.textContent = "計測中…";
+  stagesEl.innerHTML = "";
+  diagEl.hidden = true;
+  deepBtn.hidden = true;
+  NetDiagView.scanning(roadEl); // 計測中は調査車が道路を巡回
+  try {
+    const out = await engine.run(renderStage);
+    if (out) {
+      NetDiagView.show(roadEl, out.diagnosis);
+      showDiagnosis(out.diagnosis);
+      NetDiagLog.add(out.diagnosis, out.metrics); // 研究用ログ（端末内のみ）
+      updateLogInfo();
+      lastOut = out;
+      // 「遅い/不安定」の時だけ詳細診断を提案する
+      deepBtn.hidden = !["slow", "weakOrCongested"].includes(out.diagnosis.key);
+    }
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = "診断する";
+  }
+});
+
+// ---- 詳細診断（原因のさらなる切り分け） ----
+deepBtn.addEventListener("click", async () => {
+  deepBtn.disabled = true;
+  deepBtn.textContent = "詳細を計測中…";
+  try {
+    const idle = lastOut && lastOut.metrics.stability
+      ? lastOut.metrics.stability.meanRttMs : null;
+    const out = await engine.deepRun(renderStage, idle);
+    if (out) {
+      NetDiagView.show(roadEl, out.diagnosis);
+      showDiagnosis(out.diagnosis);
+      NetDiagLog.add(out.diagnosis, out.metrics);
+      updateLogInfo();
+      deepBtn.hidden = true;
+    }
+  } finally {
+    deepBtn.disabled = false;
+    deepBtn.textContent = "詳しく調べる（追加で最大約2MB通信）";
+  }
+});
+
+// ---- 研究用ログUI ----
+const logCountEl = document.getElementById("logCount");
+function updateLogInfo() {
+  logCountEl.textContent = `記録: ${NetDiagLog.count()}件`;
+}
+document.getElementById("csvBtn").addEventListener("click", () => {
+  // BOM付きUTF-8にするとExcelで文字化けしない
+  const blob = new Blob(["﻿" + NetDiagLog.toCSV()], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `netdiag-log-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+document.getElementById("clearBtn").addEventListener("click", () => {
+  if (confirm("記録をすべて消去しますか？")) {
+    NetDiagLog.clear();
+    updateLogInfo();
+  }
+});
+updateLogInfo();
+
+// PWA: 初回アクセス以降はオフラインでも開けるようにする
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+</body>
+</html>
