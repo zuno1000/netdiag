@@ -56,7 +56,7 @@
               font-size: 13px; color: #666; margin-bottom: 6px; }
   #progTrack { height: 6px; background: #ddd; border-radius: 3px; overflow: hidden; }
   #progFill { height: 100%; width: 0%; background: #0f6e56;
-              border-radius: 3px; transition: width 0.3s; }
+              border-radius: 3px; }
   @media (prefers-color-scheme: dark) {
     body { background: #1c1c1e; color: #eee; }
     li { background: #2c2c2e; }
@@ -118,26 +118,68 @@ const progLabel = document.getElementById("progLabel");
 const progFill = document.getElementById("progFill");
 const progElapsed = document.getElementById("progElapsed");
 let progTimer = null;
+let progAnim = null;
+let progT0 = 0;
+let progTarget = 0;   // エンジンから通知された実進捗
+let progShown = 0;    // 表示中の値（なめらかに追従）
+let progEstimate = 10;
+let progStoreKey = null;
 
-function progressStart(estimateText) {
+function progressStart(defaultSec, storeKey) {
+  // 前回の実測所要時間があれば、それを目安時間として使う（動的な目安）
+  const last = Number(localStorage.getItem(storeKey));
+  progEstimate = last > 0 ? Math.max(3, Math.round(last)) : defaultSec;
+  progStoreKey = storeKey;
+  progTarget = 0;
+  progShown = 0;
+  progT0 = performance.now();
   progEl.hidden = false;
   progFill.style.width = "0%";
   progLabel.textContent = "準備中…";
-  progElapsed.textContent = estimateText;
-  const t0 = performance.now();
+  progElapsed.textContent = `目安 約${progEstimate}秒`;
   clearInterval(progTimer);
   progTimer = setInterval(() => {
-    progElapsed.textContent =
-      `経過 ${Math.round((performance.now() - t0) / 1000)}秒（${estimateText}）`;
+    const elapsed = (performance.now() - progT0) / 1000;
+    if (progTarget >= 0.15) {
+      // 実進捗と経過時間から残り時間を逆算
+      const remain = Math.max(1,
+        Math.round(elapsed * (1 - progTarget) / progTarget));
+      progElapsed.textContent =
+        `経過 ${Math.round(elapsed)}秒 / 残り 約${remain}秒`;
+    } else {
+      progElapsed.textContent =
+        `経過 ${Math.round(elapsed)}秒（目安 約${progEstimate}秒）`;
+    }
   }, 500);
+  cancelAnimationFrame(progAnim);
+  progressTick();
 }
+
+// バーは実進捗へなめらかに追従しつつ、少しだけ先へ這い進む。
+// 実進捗+12%を超えないため「嘘の完了」にはならない
+function progressTick() {
+  const cap = Math.min(progTarget + 0.12, 0.98);
+  progShown += (cap - progShown) * 0.015;
+  if (progTarget > progShown) progShown += (progTarget - progShown) * 0.25;
+  progFill.style.width = (Math.min(progShown, cap) * 100).toFixed(1) + "%";
+  progAnim = requestAnimationFrame(progressTick);
+}
+
 function progressUpdate(label, frac) {
   progLabel.textContent = label;
-  progFill.style.width = Math.round(frac * 100) + "%";
+  progTarget = Math.max(progTarget, frac);
 }
+
 function progressEnd() {
   clearInterval(progTimer);
-  progressUpdate("完了", 1);
+  cancelAnimationFrame(progAnim);
+  progLabel.textContent = "完了";
+  progFill.style.width = "100%";
+  // 今回の所要時間を保存し、次回の目安にする（瞬時に終わった回は除く）
+  const sec = (performance.now() - progT0) / 1000;
+  if (progStoreKey && sec >= 2) {
+    try { localStorage.setItem(progStoreKey, sec.toFixed(1)); } catch { /* noop */ }
+  }
   setTimeout(() => { progEl.hidden = true; }, 800);
 }
 
@@ -171,7 +213,7 @@ runBtn.addEventListener("click", async () => {
   diagEl.hidden = true;
   deepBtn.hidden = true;
   NetDiagView.scanning(roadEl); // 計測中は調査車が道路を巡回
-  progressStart("目安 約10秒");
+  progressStart(10, "netdiag-dur-run");
   try {
     const out = await engine.run(renderStage, progressUpdate);
     if (out) {
@@ -194,7 +236,7 @@ runBtn.addEventListener("click", async () => {
 deepBtn.addEventListener("click", async () => {
   deepBtn.disabled = true;
   deepBtn.textContent = "詳細を計測中…";
-  progressStart("目安 約15秒");
+  progressStart(15, "netdiag-dur-deep");
   try {
     const idle = lastOut && lastOut.metrics.stability
       ? lastOut.metrics.stability.meanRttMs : null;
