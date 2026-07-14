@@ -309,7 +309,7 @@ const NetDiag = (() => {
      * 通常診断。段階プローブを順に実行し、onStage(result) が段階ごとに呼ばれる。
      * 戻り値: { results: [...], diagnosis: {...}, metrics: {...} }
      */
-    async run(onStage) {
+    async run(onStage, onProgress = null) {
       if (this.running) return null;
       this.running = true;
       const results = [];
@@ -319,7 +319,10 @@ const NetDiag = (() => {
         if (onStage) onStage(r);
       };
 
+      const prog = (label, frac) => { if (onProgress) onProgress(label, frac); };
+
       try {
+        prog("接続を確認中…", 0.05);
         // ① 接続性（通信なし。ブラウザの自己申告なので過信しない）
         const online = navigator.onLine;
         const conn = navigator.connection || null; // iOS Safariは非対応でnull
@@ -342,6 +345,7 @@ const NetDiag = (() => {
         }
 
         // ② HTTP到達性 + DNS/TCP/TLS内訳（Resource Timing）
+        prog("到達性と応答を計測中…", 0.2);
         const first = await fetchProbe(this.config.probeUrl, this.config.timeoutMs);
         let reachable = first.ok;
         let portalSuspect = false;
@@ -387,6 +391,7 @@ const NetDiag = (() => {
           let failures = 0;
           const n = this.config.stabilitySamples;
           for (let i = 0; i < n; i++) {
+            prog(`安定性を計測中…（${i + 1}/${n}回目）`, 0.35 + 0.6 * (i / n));
             const r = await fetchProbe(this.config.probeUrl, this.config.timeoutMs);
             if (r.ok) rtts.push(r.totalMs);
             else failures++;
@@ -411,6 +416,7 @@ const NetDiag = (() => {
           push("stability", "skipped", "到達失敗のため未実施");
         }
 
+        prog("判定中…", 0.98);
         const diagnosis = diagnose({ online, reachable, portalSuspect, phases, stability });
         return {
           results,
@@ -426,7 +432,7 @@ const NetDiag = (() => {
      * 詳細診断（「遅い/不安定」の後段。追加で最大約2MB通信する）
      * idleRttMs には直前の run() の stability.meanRttMs を渡すとよい
      */
-    async deepRun(onStage, idleRttMs = null) {
+    async deepRun(onStage, idleRttMs = null, onProgress = null) {
       if (this.running) return null;
       this.running = true;
       const results = [];
@@ -436,10 +442,14 @@ const NetDiag = (() => {
         if (onStage) onStage(r);
       };
 
+      const prog = (label, frac) => { if (onProgress) onProgress(label, frac); };
+
       try {
         // ① 計測先の比較（自分側か相手・経路側かの切り分け）
         const targets = [];
         for (const t of this.config.deepTargets) {
+          prog(`計測先を比較中…（${t.name}）`,
+               0.05 + 0.4 * (targets.length / this.config.deepTargets.length));
           let best = null;
           let bestPhases = null;
           for (let i = 0; i < 2; i++) { // 2回測って良い方（瞬間ノイズ除去）
@@ -461,6 +471,7 @@ const NetDiag = (() => {
           targets.map((t) =>
             `${t.name} ${t.ms != null ? Math.round(t.ms) + "ms" : "×"}`).join(" / "));
 
+        prog("実効速度を計測中…", 0.5);
         // ② 実効速度（最大200KB・5秒で打ち切り）
         const thr = await measureThroughput(this.config.deepDownloadUrl,
           this.config.deepThroughputBytes, this.config.deepTimeoutMs);
@@ -469,6 +480,7 @@ const NetDiag = (() => {
             ? `約${fmtKbps(thr.kbps)}（${Math.round(thr.bytes / 1000)}KB計測）`
             : "計測失敗");
 
+        prog("負荷をかけて遅延を計測中…", 0.72);
         // ③ 負荷時の遅延（バッファブロート検出）
         let idle = idleRttMs;
         if (idle == null && okT.length) idle = Math.min(...okT.map((t) => t.ms));
@@ -492,6 +504,7 @@ const NetDiag = (() => {
           push("loaded", "skipped", "基準値が無いため未実施");
         }
 
+        prog("判定中…", 0.98);
         const diagnosis = diagnoseDeep({
           targets, kbps: thr.kbps, bytes: thr.bytes,
           idleRtt: idle, loadedRtt: loaded,
