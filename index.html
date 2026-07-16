@@ -1,445 +1,427 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>通信診断</title>
-<meta name="theme-color" content="#0f6e56">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#4f46e5">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>英単語1級</title>
 <style>
-  :root { color-scheme: light dark; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: -apple-system, "Hiragino Sans", sans-serif;
-    background: #f5f5f2; color: #1a1a1a;
-  }
-  main { max-width: 520px; margin: 0 auto; padding: 16px; }
-  h1 { font-size: 20px; font-weight: 600; margin: 8px 0 16px; }
-  #runBtn {
-    width: 100%; padding: 14px; font-size: 17px; font-weight: 600;
-    color: #fff; background: #0f6e56; border: none; border-radius: 12px;
-  }
-  #runBtn:disabled { opacity: 0.5; }
-  ul { list-style: none; padding: 0; margin: 20px 0; }
-  li {
-    display: flex; align-items: center; gap: 10px;
-    background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
-  }
-  .icon { font-size: 18px; width: 24px; text-align: center; }
-  .ok { color: #1d9e75; } .ng { color: #d85a30; } .skip { color: #999; }
-  .stage-name { font-weight: 600; font-size: 15px; }
-  .detail { font-size: 12px; color: #666; }
-  .ms { margin-left: auto; font-size: 13px; color: #666; font-variant-numeric: tabular-nums; }
-  #diagnosis { background: #e1f5ee; border-radius: 12px; padding: 16px; margin-top: 4px; }
-  #diagnosis.bad { background: #faece7; }
-  #diagMsg { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
-  #diagSuggest { font-size: 14px; margin: 0; color: #444; }
-  #diagDetail { font-size: 12px; margin: 6px 0 0; color: #777; }
-  #road { margin: 16px 0 4px; }
-  #road svg { width: 100%; height: auto; display: block; }
-  #road .lbl { fill: #555; }
-  details { margin: 12px 0; }
-  summary { font-size: 14px; color: #666; }
-  #log { display: flex; gap: 8px; align-items: center; margin: 8px 0 24px;
-         font-size: 13px; color: #666; }
-  #log button { padding: 6px 10px; font-size: 12px; color: inherit;
-                background: transparent; border: 1px solid #bbb; border-radius: 8px; }
-  #deepBtn { width: 100%; margin-top: 10px; padding: 12px; font-size: 15px;
-             color: #0f6e56; background: transparent;
-             border: 1px solid #0f6e56; border-radius: 12px; }
-  #deepBtn:disabled { opacity: 0.5; }
-  #progress { margin-top: 14px; }
-  #progHead { display: flex; justify-content: space-between; gap: 8px;
-              font-size: 13px; color: #666; margin-bottom: 6px; }
-  #progTrack { height: 6px; background: #ddd; border-radius: 3px; overflow: hidden; }
-  #progFill { height: 100%; width: 0%; background: #0f6e56;
-              border-radius: 3px; }
-  #tagRow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
-            font-size: 14px; color: #666; }
-  #tagRow select { padding: 6px 10px; border-radius: 8px; border: 1px solid #bbb;
-                   background: transparent; color: inherit; font-size: 14px; }
-  #usage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
-  .u-cell { background: #fff; border-radius: 10px; padding: 10px 4px; text-align: center; }
-  .u-icon { font-size: 20px; }
-  .u-name { font-size: 11px; color: #666; margin: 2px 0; }
-  .u-mark { font-size: 16px; font-weight: 600; }
-  .u0 { color: #1d9e75; } .u1 { color: #ba7517; } .u2 { color: #d85a30; }
-  #actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  #actions button { flex: 1; min-width: 130px; padding: 10px 8px; font-size: 13px;
-                    color: #0f6e56; background: transparent;
-                    border: 1px solid #0f6e56; border-radius: 10px; }
-  #watchStatus, #compareBox { margin-top: 10px; font-size: 13px; color: #555;
-                              background: #fff; border-radius: 10px; padding: 10px 12px; }
-  #compareBox table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  #compareBox td, #compareBox th { padding: 4px 6px; text-align: center;
-                                   border-bottom: 1px solid #e5e5e5; }
-  #compareBox .verdict { font-weight: 600; margin: 8px 0 0; font-size: 14px; }
-  #histCanvas { width: 100%; height: 180px; }
-  @media (prefers-color-scheme: dark) {
-    body { background: #1c1c1e; color: #eee; }
-    li { background: #2c2c2e; }
-    .detail, .ms { color: #aaa; }
-    #diagnosis { background: #0a3a2e; } #diagnosis.bad { background: #46220f; }
-    #diagSuggest { color: #ccc; } #diagDetail { color: #999; }
-    #road .lbl { fill: #bbb; }
-    summary { color: #999; }
-    #log { color: #999; }
-    #log button { border-color: #555; }
-    #deepBtn { color: #9fe1cb; border-color: #0f6e56; }
-    #progHead { color: #999; }
-    #progTrack { background: #3a3a3c; }
-    #tagRow { color: #999; } #tagRow select { border-color: #555; }
-    .u-cell, #watchStatus, #compareBox { background: #2c2c2e; }
-    #watchStatus, #compareBox { color: #ccc; }
-    #compareBox td, #compareBox th { border-bottom-color: #444; }
-  }
+:root{
+  --bg:#f4f5fb; --card:#ffffff; --ink:#1e2033; --sub:#767b94;
+  --accent:#4f46e5; --accent2:#7c3aed;
+  --ok:#16a34a; --ok-bg:#e8f8ee; --ng:#dc2626; --ng-bg:#fdeaea;
+  --line:#e5e7f0;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+  background:var(--bg); color:var(--ink);
+  display:flex; flex-direction:column;
+  max-width:520px; margin:0 auto;
+  padding-top:env(safe-area-inset-top);
+  user-select:none; -webkit-user-select:none;
+}
+header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px 8px;
+}
+header .title{font-weight:800; font-size:16px; color:var(--accent)}
+#modeBtn{
+  border:1.5px solid var(--accent); background:#fff; color:var(--accent);
+  border-radius:999px; padding:7px 14px; font-size:13px; font-weight:700;
+  cursor:pointer;
+}
+#modeBtn:active{background:var(--accent); color:#fff}
+.topstats{
+  display:flex; gap:8px; padding:0 16px 4px; font-size:12px; color:var(--sub);
+}
+.topstats b{color:var(--ink)}
+main{flex:1; overflow-y:auto; padding:8px 16px 90px}
+/* ---- quiz ---- */
+#promptCard{
+  background:var(--card); border-radius:20px; padding:26px 18px;
+  text-align:center; box-shadow:0 2px 12px rgba(80,70,229,.07);
+  margin-bottom:14px; position:relative;
+}
+#qBadge{
+  position:absolute; top:10px; left:12px; font-size:11px; font-weight:700;
+  color:var(--accent); background:#eef; border-radius:999px; padding:3px 9px;
+}
+#qCount{position:absolute; top:10px; right:12px; font-size:11px; color:var(--sub)}
+#promptWord{font-size:30px; font-weight:800; line-height:1.3; word-break:break-word}
+#promptWord.ja{font-size:20px; font-weight:700}
+#promptHint{font-size:12px; color:var(--sub); margin-top:8px}
+.choices{display:flex; flex-direction:column; gap:10px}
+.choice{
+  background:var(--card); border:1.5px solid var(--line); border-radius:16px;
+  min-height:58px; padding:12px 14px; font-size:16px; font-weight:600;
+  text-align:left; cursor:pointer; color:var(--ink);
+  display:flex; align-items:center; line-height:1.35; word-break:break-word;
+  transition:transform .05s;
+}
+.choice:active{transform:scale(.985)}
+.choice.correct{background:var(--ok-bg); border-color:var(--ok); color:var(--ok)}
+.choice.wrong{background:var(--ng-bg); border-color:var(--ng); color:var(--ng)}
+.choice.dim{opacity:.45}
+.choice:disabled{cursor:default}
+/* ---- result panel (選択肢の直下に表示) ---- */
+#resultBar{
+  display:none;
+  background:var(--card); border-radius:16px;
+  box-shadow:0 2px 12px rgba(0,0,0,.10);
+  padding:14px 16px;
+  margin-top:10px;
+}
+#resultBar.show{display:block; animation:pop .15s ease-out}
+@keyframes pop{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+#resultHead{font-size:17px; font-weight:800; margin-bottom:6px}
+#resultHead.ok{color:var(--ok)} #resultHead.ng{color:var(--ng)}
+#resultAns{font-size:14px; line-height:1.5; margin-bottom:12px}
+#resultAns .w{font-weight:800; font-size:16px}
+#resultAns .pos{
+  font-size:11px; color:var(--sub); border:1px solid var(--line);
+  border-radius:6px; padding:1px 6px; margin-left:6px; vertical-align:2px;
+}
+#nextBtn{
+  width:100%; min-height:52px; border:none; border-radius:14px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; font-size:16px; font-weight:800; cursor:pointer;
+}
+#nextBtn:active{opacity:.85}
+/* ---- tabs ---- */
+nav{
+  position:fixed; left:0; right:0; bottom:0; margin:0 auto; max-width:520px;
+  display:flex; background:var(--card); border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom); z-index:5;
+}
+nav button{
+  flex:1; border:none; background:none; padding:10px 0 8px;
+  font-size:12px; font-weight:700; color:var(--sub); cursor:pointer;
+}
+nav button.active{color:var(--accent)}
+nav .ico{display:block; font-size:20px; margin-bottom:2px}
+/* ---- stats ---- */
+.cards{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px}
+.scard{background:var(--card); border-radius:16px; padding:14px}
+.scard .num{font-size:24px; font-weight:800; color:var(--accent)}
+.scard .lbl{font-size:12px; color:var(--sub); margin-top:2px}
+h2{font-size:14px; margin:16px 2px 8px; color:var(--ink)}
+.hist{background:var(--card); border-radius:16px; padding:12px 14px}
+.hrow{display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px}
+.hrow .d{width:52px; color:var(--sub)}
+.hrow .bar{height:14px; border-radius:7px; background:linear-gradient(90deg,var(--accent),var(--accent2)); min-width:2px}
+.hrow .v{color:var(--sub); white-space:nowrap}
+.seg{display:flex; background:#e9eaf4; border-radius:12px; padding:3px; margin-bottom:10px}
+.seg button{
+  flex:1; border:none; background:none; border-radius:10px; padding:8px 0;
+  font-size:12px; font-weight:700; color:var(--sub); cursor:pointer;
+}
+.seg button.active{background:#fff; color:var(--accent); box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.wlist{background:var(--card); border-radius:16px; overflow:hidden}
+.wrow{display:flex; justify-content:space-between; gap:10px; padding:11px 14px; border-bottom:1px solid var(--line); font-size:13px}
+.wrow:last-child{border-bottom:none}
+.wrow .en{font-weight:700}
+.wrow .ja{color:var(--sub); font-size:12px; margin-top:2px}
+.wrow .cnt{white-space:nowrap; font-size:11px; color:var(--sub); text-align:right}
+.wrow .cnt .o{color:var(--ok)} .wrow .cnt .x{color:var(--ng)}
+.empty{padding:24px; text-align:center; color:var(--sub); font-size:13px}
+.hidden{display:none !important}
 </style>
 </head>
 <body>
-<main>
-  <h1>通信診断</h1>
-  <div id="tagRow">
-    <label for="tagSel">場所タグ</label>
-    <select id="tagSel">
-      <option value="">（なし）</option>
-      <option>自宅</option>
-      <option>大学・職場</option>
-      <option>電車・移動中</option>
-      <option>カフェ・外出先</option>
-      <option>その他</option>
-    </select>
+<header>
+  <div class="title">英単語1級</div>
+  <button id="modeBtn"></button>
+</header>
+<div class="topstats">
+  <span>今日 <b id="tCount">0</b>問</span>
+  <span>正答率 <b id="tRate">-</b></span>
+  <span>覚えた <b id="tMaster">0</b>/<b id="tTotal">0</b></span>
+</div>
+
+<main id="quizView">
+  <div id="promptCard">
+    <span id="qBadge">新規</span>
+    <span id="qCount"></span>
+    <div id="promptWord"></div>
+    <div id="promptHint"></div>
   </div>
-  <button id="runBtn">診断する</button>
-  <section id="road" hidden></section>
-  <section id="diagnosis" hidden>
-    <p id="diagMsg"></p>
-    <p id="diagSuggest"></p>
-    <p id="diagDetail"></p>
-  </section>
-  <div id="usage" hidden></div>
-  <div id="watchStatus" hidden></div>
-  <div id="compareBox" hidden></div>
-  <div id="actions" hidden>
-    <button id="watchBtn">回復を見張る</button>
-    <button id="compareBtn">回線を切り替えて比較</button>
-    <button id="shareBtn">画像で共有</button>
+  <div class="choices" id="choices"></div>
+  <div id="resultBar">
+    <div id="resultHead"></div>
+    <div id="resultAns"></div>
+    <button id="nextBtn">次へ ▶</button>
   </div>
-  <button id="deepBtn" hidden>詳しく調べる（追加で最大約2MB通信）</button>
-  <div id="progress" hidden>
-    <div id="progHead"><span id="progLabel"></span><span id="progElapsed"></span></div>
-    <div id="progTrack"><div id="progFill"></div></div>
-  </div>
-  <details>
-    <summary>詳細データ</summary>
-    <ul id="stages"></ul>
-  </details>
-  <details id="hist">
-    <summary>履歴グラフ（応答時間の推移）</summary>
-    <canvas id="histCanvas"></canvas>
-  </details>
-  <section id="log">
-    <span id="logCount"></span>
-    <button id="csvBtn">CSVエクスポート</button>
-    <button id="clearBtn">記録を消去</button>
-  </section>
 </main>
 
-<script src="probe-engine.js"></script>
-<script src="road-view.js"></script>
-<script src="log-store.js"></script>
-<script src="features.js"></script>
+<main id="statsView" class="hidden">
+  <div class="cards">
+    <div class="scard"><div class="num" id="sMaster">0</div><div class="lbl">覚えた単語</div></div>
+    <div class="scard"><div class="num" id="sSeen">0</div><div class="lbl">学習した単語</div></div>
+    <div class="scard"><div class="num" id="sToday">0</div><div class="lbl">今日の解答数</div></div>
+    <div class="scard"><div class="num" id="sStreak">0</div><div class="lbl">連続学習日数</div></div>
+  </div>
+  <h2>日別の記録（解答数・正解・新たに覚えた数）</h2>
+  <div class="hist" id="hist"></div>
+  <h2>単語一覧</h2>
+  <div class="seg">
+    <button data-l="wrong" class="active">間違えた</button>
+    <button data-l="correct">正解した</button>
+    <button data-l="master">覚えた</button>
+  </div>
+  <div class="wlist" id="wlist"></div>
+</main>
+
+<nav>
+  <button id="navQuiz" class="active"><span class="ico">✏️</span>学習</button>
+  <button id="navStats"><span class="ico">📊</span>記録</button>
+</nav>
+
+<script src="words.js"></script>
 <script>
 "use strict";
-const engine = new NetDiag.Engine();
-const runBtn = document.getElementById("runBtn");
-const stagesEl = document.getElementById("stages");
-const diagEl = document.getElementById("diagnosis");
-const roadEl = document.getElementById("road");
-const deepBtn = document.getElementById("deepBtn");
-let lastOut = null;
+/* ================= 状態管理 ================= */
+const KEY="tango1kyu_v1";
+const POS_LABEL={v:"動詞",n:"名詞",adj:"形容詞",adv:"副詞"};
+// 忘却曲線に沿った復習間隔（box 0〜7）
+const INTERVALS=[60e3, 10*60e3, 864e5, 3*864e5, 7*864e5, 16*864e5, 35*864e5, 90*864e5];
+const MASTER_BOX=4; // このbox以上で「覚えた」
 
-// ---- 進捗表示（今なにをしていて、あとどのくらいか） ----
-const progEl = document.getElementById("progress");
-const progLabel = document.getElementById("progLabel");
-const progFill = document.getElementById("progFill");
-const progElapsed = document.getElementById("progElapsed");
-let progTimer = null;
-let progAnim = null;
-let progT0 = 0;
-let progTarget = 0;   // エンジンから通知された実進捗
-let progShown = 0;    // 表示中の値（なめらかに追従）
-let progEstimate = 10;
-let progStoreKey = null;
+let S;
+try{ S=JSON.parse(localStorage.getItem(KEY)) }catch(e){ S=null }
+if(!S || typeof S!=="object") S={v:1, mode:"e2j", words:{}, days:{}};
+S.words=S.words||{}; S.days=S.days||{}; S.mode=S.mode||"e2j";
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)) }catch(e){} }
 
-function progressStart(defaultSec, storeKey) {
-  // 前回の実測所要時間があれば、それを目安時間として使う（動的な目安）
-  const last = Number(localStorage.getItem(storeKey));
-  progEstimate = last > 0 ? Math.max(3, Math.round(last)) : defaultSec;
-  progStoreKey = storeKey;
-  progTarget = 0;
-  progShown = 0;
-  progT0 = performance.now();
-  progEl.hidden = false;
-  progFill.style.width = "0%";
-  progLabel.textContent = "準備中…";
-  progElapsed.textContent = `目安 約${progEstimate}秒`;
-  clearInterval(progTimer);
-  progTimer = setInterval(() => {
-    const elapsed = (performance.now() - progT0) / 1000;
-    if (progTarget >= 0.15) {
-      // 実進捗と経過時間から残り時間を逆算
-      const remain = Math.max(1,
-        Math.round(elapsed * (1 - progTarget) / progTarget));
-      progElapsed.textContent =
-        `経過 ${Math.round(elapsed)}秒 / 残り 約${remain}秒`;
-    } else {
-      progElapsed.textContent =
-        `経過 ${Math.round(elapsed)}秒（目安 約${progEstimate}秒）`;
-    }
-  }, 500);
-  cancelAnimationFrame(progAnim);
-  progressTick();
+function todayKey(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
+function dayRec(){ const k=todayKey(); if(!S.days[k]) S.days[k]={a:0,c:0,m:0}; return S.days[k]; }
 
-// バーは実進捗へなめらかに追従しつつ、少しだけ先へ這い進む。
-// 実進捗+12%を超えないため「嘘の完了」にはならない
-function progressTick() {
-  const cap = Math.min(progTarget + 0.12, 0.98);
-  progShown += (cap - progShown) * 0.015;
-  if (progTarget > progShown) progShown += (progTarget - progShown) * 0.25;
-  progFill.style.width = (Math.min(progShown, cap) * 100).toFixed(1) + "%";
-  progAnim = requestAnimationFrame(progressTick);
-}
+/* word state: [box, due, correct, wrong, masteredFlag] */
+function wst(en){ return S.words[en]; }
 
-function progressUpdate(label, frac) {
-  progLabel.textContent = label;
-  progTarget = Math.max(progTarget, frac);
-}
+const byEn={}; WORDS.forEach(w=>byEn[w.en]=w);
 
-function progressEnd() {
-  clearInterval(progTimer);
-  cancelAnimationFrame(progAnim);
-  progLabel.textContent = "完了";
-  progFill.style.width = "100%";
-  // 今回の所要時間を保存し、次回の目安にする（瞬時に終わった回は除く）
-  const sec = (performance.now() - progT0) / 1000;
-  if (progStoreKey && sec >= 2) {
-    try { localStorage.setItem(progStoreKey, sec.toFixed(1)); } catch { /* noop */ }
+/* ================= 出題選択（忘却曲線） ================= */
+let lastEn=null, cur=null, answered=false;
+
+function pickWord(){
+  const now=Date.now(); const due=[], unseen=[];
+  for(const w of WORDS){
+    const st=S.words[w.en];
+    if(!st){ unseen.push(w); }
+    else if(st[1]<=now){ due.push(w); }
   }
-  setTimeout(() => { progEl.hidden = true; }, 800);
-}
-
-const ICONS = { success: ["✓", "ok"], failure: ["✕", "ng"], skipped: ["−", "skip"] };
-
-function renderStage(r) {
-  const [mark, cls] = ICONS[r.outcome];
-  const li = document.createElement("li");
-  const ms = r.latencyMs != null ? `${Math.round(r.latencyMs)} ms` : "";
-  li.innerHTML =
-    `<span class="icon ${cls}">${mark}</span>` +
-    `<span><div class="stage-name"></div><div class="detail"></div></span>` +
-    `<span class="ms">${ms}</span>`;
-  li.querySelector(".stage-name").textContent = NetDiag.StageNames[r.stage] || r.stage;
-  li.querySelector(".detail").textContent = r.detail || "";
-  stagesEl.appendChild(li);
-}
-
-function showDiagnosis(d) {
-  diagEl.hidden = false;
-  diagEl.className = d.key === "healthy" ? "" : "bad";
-  document.getElementById("diagMsg").textContent = d.message;
-  document.getElementById("diagSuggest").textContent = d.suggestion;
-  document.getElementById("diagDetail").textContent = d.detail || "";
-}
-
-runBtn.addEventListener("click", async () => {
-  runBtn.disabled = true;
-  runBtn.textContent = "計測中…";
-  stagesEl.innerHTML = "";
-  diagEl.hidden = true;
-  deepBtn.hidden = true;
-  usageEl.hidden = true;
-  actionsEl.hidden = true;
-  watcher.stop();
-  watchStatusEl.hidden = true;
-  watchBtn.textContent = "回復を見張る";
-  NetDiagView.scanning(roadEl); // 計測中は調査車が道路を巡回
-  progressStart(10, "netdiag-dur-run");
-  try {
-    const out = await engine.run(renderStage, progressUpdate);
-    if (out) {
-      NetDiagView.show(roadEl, out.diagnosis);
-      showDiagnosis(out.diagnosis);
-      NetDiagLog.add(out.diagnosis, out.metrics, currentTag()); // 記録は端末内のみ
-      updateLogInfo();
-      drawHistoryIfOpen();
-      lastOut = out;
-      currentView = { diagnosis: out.diagnosis, metrics: out.metrics };
-      NetDiagFeatures.renderUsage(usageEl, out.metrics, out.diagnosis);
-      updateActions(out);
-      if (pendingCompare) renderComparison(pendingCompare, out);
-      // 「遅い/不安定」の時だけ詳細診断を提案する
-      deepBtn.hidden = !["slow", "weakOrCongested"].includes(out.diagnosis.key);
-    }
-  } finally {
-    runBtn.disabled = false;
-    runBtn.textContent = "診断する";
-    progressEnd();
+  const notLast=a=>a.length>1? a.filter(w=>w.en!==lastEn) : a;
+  const d=notLast(due), u=notLast(unseen);
+  if(d.length && (u.length===0 || Math.random()<0.8)){
+    d.sort((a,b)=>S.words[a.en][1]-S.words[b.en][1]); // 期限切れが古い順
+    const pool=d.slice(0, Math.min(8,d.length));
+    return pool[Math.floor(Math.random()*pool.length)];
   }
-});
-
-// ---- 詳細診断（原因のさらなる切り分け） ----
-deepBtn.addEventListener("click", async () => {
-  deepBtn.disabled = true;
-  deepBtn.textContent = "詳細を計測中…";
-  progressStart(15, "netdiag-dur-deep");
-  try {
-    const idle = lastOut && lastOut.metrics.stability
-      ? lastOut.metrics.stability.meanRttMs : null;
-    const out = await engine.deepRun(renderStage, idle, progressUpdate);
-    if (out) {
-      NetDiagView.show(roadEl, out.diagnosis);
-      showDiagnosis(out.diagnosis);
-      NetDiagLog.add(out.diagnosis, out.metrics, currentTag());
-      updateLogInfo();
-      drawHistoryIfOpen();
-      currentView = {
-        diagnosis: out.diagnosis,
-        metrics: { ...(lastOut ? lastOut.metrics : {}), deep: out.metrics.deep },
-      };
-      NetDiagFeatures.renderUsage(usageEl, currentView.metrics, out.diagnosis);
-      deepBtn.hidden = true;
-    }
-  } finally {
-    deepBtn.disabled = false;
-    deepBtn.textContent = "詳しく調べる（追加で最大約2MB通信）";
-    progressEnd();
-  }
-});
-
-// ---- 追加機能の配線 ----
-const usageEl = document.getElementById("usage");
-const actionsEl = document.getElementById("actions");
-const watchBtn = document.getElementById("watchBtn");
-const compareBtn = document.getElementById("compareBtn");
-const shareBtn = document.getElementById("shareBtn");
-const watchStatusEl = document.getElementById("watchStatus");
-const compareBox = document.getElementById("compareBox");
-const tagSel = document.getElementById("tagSel");
-let currentView = null;
-let pendingCompare = null;
-
-// 場所タグ（選択を記憶し、記録に付与）
-tagSel.value = localStorage.getItem("netdiag-tag") || "";
-tagSel.addEventListener("change", () => {
-  try { localStorage.setItem("netdiag-tag", tagSel.value); } catch { /* noop */ }
-});
-function currentTag() { return tagSel.value; }
-
-function updateActions(out) {
-  actionsEl.hidden = false;
-  watchBtn.hidden = out.diagnosis.key === "healthy";
-  compareBtn.hidden = !out.metrics.online;
+  if(u.length) return u[Math.floor(Math.random()*u.length)];
+  // 期限前だが先取り復習（覚えた度が低い順・期限が近い順）
+  const seen=WORDS.filter(w=>S.words[w.en] && w.en!==lastEn);
+  seen.sort((a,b)=>(S.words[a.en][0]-S.words[b.en][0]) || (S.words[a.en][1]-S.words[b.en][1]));
+  const pool=seen.slice(0, Math.min(10,seen.length));
+  return pool[Math.floor(Math.random()*pool.length)] || WORDS[0];
 }
 
-// 回復ウォッチ
-const watcher = NetDiagFeatures.createWatcher(engine, {
-  onCheck(r, streak, good) {
-    const t = new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
-    watchStatusEl.textContent = good
-      ? `見張り中… ${t} 良好な応答です（確認 ${streak}/2回）`
-      : `見張り中… ${t} まだ不調です（30秒ごとに確認します）`;
-  },
-  onRecovered() {
-    watchBtn.textContent = "回復を見張る";
-    watchBtn.hidden = true;
-    watchStatusEl.textContent = "回復したようです。もう一度診断して確認してみてください";
-    const d = { key: "healthy", message: "回復したようです",
-                suggestion: "念のためもう一度「診断する」を押して確認してください", detail: "" };
-    NetDiagView.show(roadEl, d);
-    showDiagnosis(d);
-  },
-});
-watchBtn.addEventListener("click", () => {
-  if (watcher.active) {
-    watcher.stop();
-    watchBtn.textContent = "回復を見張る";
-    watchStatusEl.hidden = true;
-  } else {
-    watcher.start();
-    watchBtn.textContent = "見張りをやめる";
-    watchStatusEl.hidden = false;
-    watchStatusEl.textContent = "見張り中…（30秒ごとに軽く確認します。画面は開いたままにしてください）";
-  }
-});
+/* 意味が重なる語を選択肢から除外（例:「なだめる」系の同義語同士） */
+function jaTokens(s){ return s.split(/[、。・（）()／\/\s～~]+/).filter(t=>t.length>=2); }
+function overlaps(a,b){
+  const ta=jaTokens(a.ja), tb=new Set(jaTokens(b.ja));
+  return ta.some(t=>tb.has(t));
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
-// 回線切り替え比較
-compareBtn.addEventListener("click", () => {
-  if (pendingCompare) {
-    pendingCompare = null;
-    compareBox.hidden = true;
-    compareBtn.textContent = "回線を切り替えて比較";
-    return;
-  }
-  pendingCompare = lastOut;
-  compareBtn.textContent = "比較を中止";
-  compareBox.hidden = false;
-  compareBox.textContent =
-    "Wi-Fiとモバイル回線を切り替えてから、もう一度「診断する」を押してください。2回の結果を並べて比較します。";
-});
-function renderComparison(a, b) {
-  compareBox.hidden = false;
-  compareBox.innerHTML = "";
-  compareBox.appendChild(NetDiagFeatures.buildCompareTable(a, b));
-  pendingCompare = null;
-  compareBtn.textContent = "回線を切り替えて比較";
+function buildChoices(word){
+  const pool=WORDS.filter(c=>c.pos===word.pos && c.en!==word.en && !overlaps(c,word));
+  shuffle(pool);
+  return shuffle([word, ...pool.slice(0,3)]);
 }
 
-// 共有カード
-shareBtn.addEventListener("click", () => {
-  if (currentView) {
-    NetDiagFeatures.shareCard({ ...currentView, tag: currentTag() });
-  }
-});
+/* ================= クイズ描画 ================= */
+const $=id=>document.getElementById(id);
 
-// 履歴グラフ
-const histDetails = document.getElementById("hist");
-const histCanvas = document.getElementById("histCanvas");
-histDetails.addEventListener("toggle", () => {
-  if (histDetails.open) NetDiagFeatures.drawHistory(histCanvas, NetDiagLog.all());
-});
-function drawHistoryIfOpen() {
-  if (histDetails.open) NetDiagFeatures.drawHistory(histCanvas, NetDiagLog.all());
+function renderQuestion(){
+  answered=false;
+  document.body.classList.remove("quiz-answered");
+  $("resultBar").classList.remove("show");
+  const w=cur.word, e2j=S.mode==="e2j";
+  const st=wst(w.en);
+  $("qBadge").textContent = !st? "新規" : (st[0]>=MASTER_BOX? "覚えた・復習" : "復習");
+  $("qBadge").style.background = !st? "#eef" : (st[0]>=MASTER_BOX? "#e8f8ee" : "#fdf3e3");
+  $("qBadge").style.color = !st? "var(--accent)" : (st[0]>=MASTER_BOX? "var(--ok)" : "#b45309");
+  const d=dayRec(); $("qCount").textContent="今日 "+d.a+"問";
+  const pw=$("promptWord");
+  pw.textContent = e2j? w.en : w.ja;
+  pw.className = e2j? "" : "ja";
+  $("promptHint").textContent = e2j? "この単語の意味は？" : "この意味の英単語は？";
+  const box=$("choices"); box.innerHTML="";
+  cur.choices.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="choice";
+    b.textContent = e2j? c.ja : c.en;
+    b.onclick=()=>answer(c,b);
+    box.appendChild(b);
+  });
+  updateTop();
 }
 
-// ---- 研究用ログUI ----
-const logCountEl = document.getElementById("logCount");
-function updateLogInfo() {
-  logCountEl.textContent = `記録: ${NetDiagLog.count()}件`;
+function newQuestion(){
+  const w=pickWord();
+  cur={word:w, choices:buildChoices(w)};
+  renderQuestion();
 }
-document.getElementById("csvBtn").addEventListener("click", () => {
-  // BOM付きUTF-8にするとExcelで文字化けしない
-  const blob = new Blob(["﻿" + NetDiagLog.toCSV()], { type: "text/csv;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `netdiag-log-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-});
-document.getElementById("clearBtn").addEventListener("click", () => {
-  if (confirm("記録をすべて消去しますか？")) {
-    NetDiagLog.clear();
-    updateLogInfo();
-  }
-});
-updateLogInfo();
 
-// PWA: 初回アクセス以降はオフラインでも開けるようにする
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js");
+function answer(chosen, btn){
+  if(answered) return;
+  answered=true;
+  const w=cur.word, ok=chosen.en===w.en, e2j=S.mode==="e2j";
+  // ボタンの色付け
+  document.querySelectorAll(".choice").forEach(b=>{
+    b.disabled=true;
+    const label=e2j? b.textContent : b.textContent;
+    const isCorrect = label === (e2j? w.ja : w.en);
+    if(isCorrect) b.classList.add("correct");
+    else if(b===btn) b.classList.add("wrong");
+    else b.classList.add("dim");
+  });
+  // SRS更新
+  const now=Date.now();
+  let st=S.words[w.en];
+  if(!st) st=S.words[w.en]=[0,0,0,0,0];
+  if(ok) st[0]=Math.min(st[0]+1, INTERVALS.length-1); else st[0]=0;
+  st[1]=now+INTERVALS[st[0]];
+  if(ok) st[2]++; else st[3]++;
+  const d=dayRec(); d.a++; if(ok) d.c++;
+  if(ok && st[0]>=MASTER_BOX && !st[4]){ st[4]=1; d.m++; }
+  save();
+  lastEn=w.en;
+  // 結果表示
+  const head=$("resultHead");
+  head.textContent = ok? "⭕ 正解！" : "❌ 不正解";
+  head.className = ok? "ok" : "ng";
+  $("resultAns").innerHTML =
+    '<span class="w">'+esc(w.en)+'</span><span class="pos">'+POS_LABEL[w.pos]+'</span><br>'+esc(w.ja);
+  $("resultBar").classList.add("show");
+  document.body.classList.add("quiz-answered");
+  // 次へボタンが画面外の場合のみ見える位置までスクロール
+  try{ $("nextBtn").scrollIntoView({block:"nearest", behavior:"smooth"}); }catch(e){}
+  updateTop();
+}
+
+function esc(s){ return s.replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+
+$("nextBtn").onclick=()=>newQuestion();
+
+/* モード切替 */
+function renderModeBtn(){ $("modeBtn").textContent = S.mode==="e2j"? "EN → 日本語" : "日本語 → EN"; }
+$("modeBtn").onclick=()=>{
+  S.mode = S.mode==="e2j"? "j2e" : "e2j"; save(); renderModeBtn();
+  if(!answered && cur) renderQuestion(); // 未解答なら同じ単語で出し直し
+};
+
+/* ================= ヘッダー統計 ================= */
+function masteredCount(){ let n=0; for(const en in S.words){ if(S.words[en][0]>=MASTER_BOX) n++; } return n; }
+function updateTop(){
+  const d=S.days[todayKey()]||{a:0,c:0,m:0};
+  $("tCount").textContent=d.a;
+  $("tRate").textContent = d.a? Math.round(100*d.c/d.a)+"%" : "-";
+  $("tMaster").textContent=masteredCount();
+  $("tTotal").textContent=WORDS.length;
+}
+
+/* ================= 記録画面 ================= */
+let listMode="wrong";
+function renderStats(){
+  $("sMaster").textContent=masteredCount();
+  $("sSeen").textContent=Object.keys(S.words).length;
+  const d=S.days[todayKey()]||{a:0,c:0,m:0};
+  $("sToday").textContent=d.a;
+  // 連続日数
+  let streak=0; const t=new Date();
+  for(let i=0;;i++){
+    const dt=new Date(t.getFullYear(),t.getMonth(),t.getDate()-i);
+    const k=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+    const r=S.days[k];
+    if(r && r.a>0) streak++;
+    else if(i===0) continue; // 今日まだ未学習でも昨日から数える
+    else break;
+  }
+  $("sStreak").textContent=streak;
+  // 日別履歴（直近14日）
+  const hist=$("hist"); hist.innerHTML="";
+  let max=1; const rows=[];
+  for(let i=13;i>=0;i--){
+    const dt=new Date(t.getFullYear(),t.getMonth(),t.getDate()-i);
+    const k=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+    const r=S.days[k]||{a:0,c:0,m:0};
+    max=Math.max(max,r.a);
+    rows.push({label:(dt.getMonth()+1)+"/"+dt.getDate(), r});
+  }
+  rows.forEach(({label,r})=>{
+    const div=document.createElement("div"); div.className="hrow";
+    div.innerHTML='<span class="d">'+label+'</span>'+
+      '<span class="bar" style="width:'+Math.round(100*r.a/max)+'%"></span>'+
+      '<span class="v">'+r.a+'問 ✓'+r.c+' ⭐'+r.m+'</span>';
+    hist.appendChild(div);
+  });
+  renderList();
+}
+function renderList(){
+  const box=$("wlist"); box.innerHTML="";
+  let items=[];
+  for(const en in S.words){
+    const st=S.words[en], w=byEn[en]; if(!w) continue;
+    if(listMode==="wrong" && st[3]>0) items.push({w,st,k:st[3]});
+    else if(listMode==="correct" && st[2]>0) items.push({w,st,k:st[2]});
+    else if(listMode==="master" && st[0]>=MASTER_BOX) items.push({w,st,k:st[0]});
+  }
+  items.sort((a,b)=> b.k-a.k || a.w.en.localeCompare(b.w.en));
+  if(!items.length){
+    box.innerHTML='<div class="empty">まだ記録がありません</div>'; return;
+  }
+  const frag=document.createDocumentFragment();
+  items.forEach(({w,st})=>{
+    const div=document.createElement("div"); div.className="wrow";
+    div.innerHTML='<div><div class="en">'+esc(w.en)+'</div><div class="ja">'+esc(w.ja)+'</div></div>'+
+      '<div class="cnt"><span class="o">○'+st[2]+'</span> <span class="x">✕'+st[3]+'</span></div>';
+    frag.appendChild(div);
+  });
+  box.appendChild(frag);
+}
+document.querySelectorAll(".seg button").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll(".seg button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active"); listMode=b.dataset.l; renderList();
+  };
+});
+
+/* ================= タブ切替 ================= */
+$("navQuiz").onclick=()=>{
+  $("quizView").classList.remove("hidden"); $("statsView").classList.add("hidden");
+  $("navQuiz").classList.add("active"); $("navStats").classList.remove("active");
+};
+$("navStats").onclick=()=>{
+  $("statsView").classList.remove("hidden"); $("quizView").classList.add("hidden");
+  $("navStats").classList.add("active"); $("navQuiz").classList.remove("active");
+  renderStats();
+};
+
+/* ================= 起動 ================= */
+renderModeBtn();
+newQuestion(); // 開いた瞬間に出題
+if("serviceWorker" in navigator && location.protocol==="https:"){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
 }
 </script>
 </body>
